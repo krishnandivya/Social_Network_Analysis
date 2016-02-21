@@ -1,0 +1,432 @@
+---
+title: 'Selective Mixing and Core-Periphery Structure'
+author: Divya Krishnan
+date: 'Friday May 1st, 2015'
+output: html_document
+---
+
+### Selective Mixing and Core/Periphery Structure[^1] ###
+
+[^1]: Problems originally written by C.T. Butts (2009).
+
+```{r, message=FALSE}
+# Adding libraries
+library(statnet)
+library(sna)
+library(network)
+library(knitr)
+library(plyr) 
+# Loading relevant datasets 
+load("core_periphery.Rdata")
+load("block.fit.Rdata")
+data(emon)
+# Listing variables 
+ls()
+```
+
+#### Selective Mixing ####
+
+We will begin with an examination of selective mixing in the Drabek et al. EMON data (which can be accessed in the `network` package via the command `data(emon)`). Recall the `emon` object is a list of seven networks, such that `emon[[1]]` is the $i$th network object. (See `?emon` for details regarding the dataset.) 
+
+##### (a) Visualizing the Networks ##### 
+
+To begin, plot each of the seven networks, coloring vertices by the "Sponsorship" vertex attribute. With each plot, include a legend showing how sponsorship is colored. One thing to be aware of here is that many of the networks have missing data on this attribute - take care to make sure those vertices are being indicated in a reasonable way.
+
+```{r,eval=TRUE}
+# List to store sponsorship data
+spons= list()
+# Creating a vector for EMON network names 
+names = c("Cheyenne","HurrFrederic","LakePomona","MtSi","MtStHelens","Texas","Wichita")
+par(mfrow=c(1,1))
+# Looping through each network of EMON dataset
+for(i in 1:length(emon))
+{
+  spons[[i]]<-emon[[i]]%v%"Sponsorship"
+  # Plot by Sponsorship 
+  plot(emon[[i]],vertex.col="Sponsorship", main=names[i]) 
+  vals<-sort(unique(emon[[i]]%v%"Sponsorship"))   
+  legend("topleft",fill=1:length(vals),legend=vals,bty="n")
+}
+
+```
+
+##### (b) Dyadic Mixing #####
+
+Using the `mixingmatrix` command, obtain mixing matrices for all seven EMONs using "Sponsorship" as the relevant vertex attribute. For each network provide:
+
+* The raw mixing matrix.
+* The matrix of mixing rates/block densities (this was called $r$ in class).
+* The matrix of marginal $z$-scores, using the Poisson approximation. 
+* A plot of the reduced form blockmodel, with edge widths set based on mixing rates.
+
+```{r,eval=TRUE}
+# Creating list variables
+mms = list()
+smarg = list()
+emms = list()
+dmms = list()
+zmms = list()
+postie = list()
+rate = list()
+#names = c("Cheyenne","HurrFrederic","LakePomona","MtSi","MtStHelens","Texas","Wichita")
+
+par(mfrow=c(1,1))
+for(i in 1:length(emon))
+{
+  spons<-get.vertex.attribute(emon[[i]],"Sponsorship")  
+  nspons<-count(spons)  
+  num = nrow(nspons)  
+  tempmat<-matrix(0,nrow=num,ncol=num)  
+  for(x in 1:num)
+    {      
+      temp<-vector(mode="logical",num)
+      for(y in 1:num)
+        {           
+          if(x==y)                
+            temp[y]<-nspons[y,2]*(nspons[y,2]-1)          
+          else
+            temp[y]<-nspons[x,2]*nspons[y,2]   
+        }     
+      tempmat[x,]<-tempmat[x,]+temp
+    }  
+  postie[[i]]<-tempmat
+  cat("Possible ties for",names[i],"network -\n")
+  print(postie[[i]])
+  
+  mms[[i]]<-mixingmatrix(emon[[i]],"Sponsorship")        
+  # Extracting the mixing matrix
+  cat("Mixing matrix for",names[i],"network -\n")
+  print(mms[[i]]$matrix)
+  
+  #mixing rate
+  rate[[i]]= mms[[i]]$matrix/postie[[i]]
+  cat("Mixing Rate for",names[i],"network -\n")
+  print(rate[[i]])
+  
+  smarg[[i]]<-rowSums(mms[[i]]$matrix)                      # Marginals for grade  
+  emms[[i]]<-(smarg[[i]]%o%smarg[[i]])/sum(smarg[[i]])      # Expected mixing matrix  
+  dmms[[i]]<-mms[[i]]$matrix-emms[[i]]                      # Divergence from expectation  
+  zmms[[i]]<-dmms[[i]]/sqrt(emms[[i]])                      # Approximate z-scores
+  cat("z scores for",names[i],"network -\n")
+  print(zmms[[i]])                                          
+  
+  title = c("Sociomatrix-",names[i])
+  # Plotting the sociomatrix
+  plot.sociomatrix(mms[[i]]$matrix, main=title)
+  title = c("Reduced form blockmodel-",names[i])
+  #Plot the z-scores as a reduced form signed blockmodel with edge width set to mixing rate
+  gplot(abs(zmms[[i]])>2,edge.col=sign(zmms[[i]])+3,label=rownames(zmms[[i]]),boxed.lab=FALSE,diag=TRUE,edge.lwd=rate[[i]]*5, xlab=title)                     
+}
+
+
+```
+
+##### (c) Discussion #####
+
+Based on your analysis in parts (a)-(b) how would you describe the overall pattern of communication mixing in the Drabek et al. SAR EMONs?
+\
+\
+*Answer: Based on the analysis, I observe that Cheyenne, Lake Pomona and Mt Si network have communication mixing that is usually expected in a network with such a distribution of classes. Observing the plots of the 3 networks, I see that Cheyenne and Lake Pomona have good number of edges between the different classes of sponsorship. From the plot in part (a) of Mt Si, I observe that there are about 5 isolates. Inspite of the isolates, the communication mixing for Mt Si seems to be in the expected range. One reason could be that the density of the network is very less and the size is also smaller as compared to other networks. Only the private organizations seem to be actively connected with each other and with other classes of sponsorship. The z scores for Cheyenne and Lake Pomona are all between -2 and 2 value. For the Mt Si network, the z scores for the Federal organizations is not defined. This is because the mixing rate for Federal organizations is zero. When the plot of the network from part (a) is observed, I see that the Federal has only one organization which is an isolate. The other isolates have atleast one organization from their class connected to other organizations. Hence, the communication mixing of Mt Si network needs to be reconsidered.  
+\
+HurrFederic network has lower than expected communication mixing between the organizations that were sponsored by City and those by Federal government. When I observe the network plot from part (a), I see that there is only one organization sponsored by Federal whereas there are about 8 organizations sponsored by City. Considering that there are 8 organizations in City class, the 2 edges between City and Federal are less than expected.The z score from City to Federal is 2.25 and the mixing rate is 0.25.  
+\
+Networks Mt St Helens, Texas and Wichita have higher than expected communication mixing. For Mt St Helens network I observe that there is higher than expected communication from the Private organizations to the City organizations. But looking at the z score between Private and City, I observe that it is "Inf", which means it could be a result of division by zero. Also the network plot from part (a), shows that there is only one organization that is sponsored by the City and it has only one edge from Private organization. Hence, this structure is making me reconsider the higher than expected communication mixing from Private to City. For the Texas network, it shows that there is higher than expected communication mixing between organizations sponsored by State and Federal and Private and City. The z score between State and Federal is very high value, namely, 4.27 whereas the z score between private and City is 2.38. But the mixing rate from State to Federal and from Private to City is both 0.67. In general, I observe that Texas network has the highest mixing rate. In Wichita network, I observe that organizations sponsored by State, City and Private institutions communicate more than expected with the organizations sponsored by Federal government. Here the organizations sponsored by Federal government seem to be central and in a valuable position as a lot of other organizations seek to communicate with them. The z score from State to Federal, City to Federal and Private to Federal is 2.1, 4.37, 2.9 respectively. Here I observe that the z score for communication mixing from City to Federal is highest, namely, 4.37. Among the 3, the mixing rate from City to Federal is the highest followed by Private and State. Looking at the network plot from part (a), I observe that the there are 2 organizations sponsored by the Federal and both of their outdegrees are zero.
+
+\  <!-- Some vertical space. -->
+
+#### Core/Periphery Structure ####
+
+In this problem we will use data from a famous series of studies by Bernard, Killworth, and Sailer[^2] on the relationship between observed interaction and informants self-reports of interaction. The specific networks we will use here are from the "behavioral" side, meaning that the $i,j$ cell corresponds to the number of times $i$ and $j$ were *observed* to interact during the data collection period. All interaction is these studies is interpersonal; the study contexts are: (1) communication among radio operators, (2) face-to-face interactions among members of a fraterity, (3) face-to-face interactions in a university research group, and (4) face-to-face interactions in a small business. Here we investigate the possibility of latent two-class structure in these interation networks. 
+
+[^2]:
+
+##### (a) Network Visualization #####
+
+To begin visualize each network. You might find it helpful to use transparency when displaying edges using the `edge.col=rgb(0,0,0,0.5)` option of the `gplot` function. Based on each visualization, indicate whether there appears to be a two-class block structure present, and if so what it might be.
+\
+\
+*Answer: For the question 2, bkham or 'h' denotes radio operator network, bkfrat or 'f' denotes fraternity network, bkoff or 'o' denotes research group network and bktec or 't' denotes business network. Analysing the visualizations, there appears to be a two-class block structure for each network. Each of the networks seem to have a core periphery structure with Core having in and out ties (1,1,1,0 model). Their core seems to be densely connected and there are nodes from periphery which are connected to the core but not so much connected to each other.
+\
+
+```{r, eval=TRUE}
+# Plotting radio operator network
+h=network(bkham,directed=FALSE)
+gplot(h,edge.col=rgb(0,0,0,0.5),gmode="graph",xlab="Radio operator network") 
+# Plotting fraternity network
+f=network(bkfrat,directed=FALSE)
+gplot(f,edge.col=rgb(0,0,0,0.5),gmode="graph",xlab="Fraternity network") 
+# Plotting research group network
+o=network(bkoff,directed=FALSE)
+gplot(o,edge.col=rgb(0,0,0,0.5),gmode="graph",xlab="Research Group network") 
+# Plotting business network
+t=network(bktec,directed=FALSE)
+gplot(t,edge.col=rgb(0,0,0,0.5),gmode="graph",xlab="Business network")
+
+```
+
+##### (b) Blockmodels #####
+
+For each of the BKS networks, fit each of the four non-degrenerate undirected two-class blockmodels. (You may omit the null graph and complete graph blockmodels.) In addition, fit the Borgatti and Everett variant in which only within-class edges are considered. Plot each blocked data matrix with the `plot.sociomatrix` function.
+
+#### Radio operator network Analysis ####
+```{r, eval=TRUE}
+
+model1 = c("Model(0,1,1,0)")
+model2 = c("Model(1,0,0,0)")
+model3 = c("Model(1,1,1,0)")
+model4 = c("Model(1,0,0,1)")
+model5 = c("Borgatti and Everett Model")
+
+par(mfrow=c(1,1))
+plot(h, main="Radio operator network")
+
+# Blockmodels for the Core Periphery structure for undirected graphs
+hkb1<-block.fit(h,c(0,1,1,0))   # No self loops
+hkb2<-block.fit(h,c(1,0,0,0))   # Isolated core
+hkb3<-block.fit(h,c(1,1,1,0))   # Core w/in,out ties
+hkb4<-block.fit(h,c(1,0,0,1))   # Only self loops
+hkb5<-block.fit(h,c(1,NA,NA,0)) # Borgatti and Everett variant
+
+# Plot each model as a "blocked" data matrix
+lab<-hkb1$block.membership[hkb1$order.vector]
+plot.sociomatrix(hkb1$blocked.data,labels=list(lab,lab),main=model1,asp=0.5,cex=0.5)
+lab<-hkb2$block.membership[hkb2$order.vector]
+plot.sociomatrix(hkb2$blocked.data,labels=list(lab,lab),main=model2,asp=0.5,cex=0.5)
+lab<-hkb3$block.membership[hkb3$order.vector]
+plot.sociomatrix(hkb3$blocked.data,labels=list(lab,lab),main=model3,asp=0.5,cex=0.5)
+lab<-hkb4$block.membership[hkb4$order.vector]
+plot.sociomatrix(hkb4$blocked.data,labels=list(lab,lab),main=model4,asp=0.5,cex=0.5)
+lab<-hkb5$block.membership[hkb5$order.vector]
+plot.sociomatrix(hkb5$blocked.data,labels=list(lab,lab),main=model5,asp=0.5,cex=0.5)
+
+# Plot the radio operator data, with vertices colored by block (black=1, red=2)
+plot(h,vertex.col=hkb1$block.membership,main=model1)
+plot(h,vertex.col=hkb2$block.membership,main=model2)
+plot(h,vertex.col=hkb3$block.membership,main=model3)
+plot(h,vertex.col=hkb4$block.membership,main=model4)
+plot(h,vertex.col=hkb5$block.membership,main=model5)
+
+```
+
+#### Fraternity network Analysis ####
+```{r, eval=TRUE}
+
+# Fraternity network
+
+par(mfrow=c(1,1))
+#plotting the network
+plot(f, main="Fraternity network")
+
+# Let's try fitting some blockmodels.  Here are several variants on C/P:
+fkb1<-block.fit(f,c(0,1,1,0))   # No self loops 
+fkb2<-block.fit(f,c(1,0,0,0))   # Isolated core
+fkb3<-block.fit(f,c(1,1,1,0))   # Core w/in,out ties
+fkb4<-block.fit(f,c(1,0,0,1))   # Only self loops
+fkb5<-block.fit(f,c(1,NA,NA,0)) # Borgatti and Everett variant
+        
+# Plot each model as a "blocked" data matrix
+lab<-fkb1$block.membership[fkb1$order.vector]
+plot.sociomatrix(fkb1$blocked.data,labels=list(lab,lab),main=model1,asp=0.5,cex=0.5)
+lab<-fkb2$block.membership[fkb2$order.vector]
+plot.sociomatrix(fkb2$blocked.data,labels=list(lab,lab),main=model2,asp=0.5,cex=0.5)
+lab<-fkb3$block.membership[fkb3$order.vector]
+plot.sociomatrix(fkb3$blocked.data,labels=list(lab,lab),main=model3,asp=0.5,cex=0.5)
+lab<-fkb4$block.membership[fkb4$order.vector]
+plot.sociomatrix(fkb4$blocked.data,labels=list(lab,lab),main=model4,asp=0.5,cex=0.5)
+lab<-fkb5$block.membership[fkb5$order.vector]
+plot.sociomatrix(fkb5$blocked.data,labels=list(lab,lab),main=model5,asp=0.5,cex=0.5)
+  
+# Plot the fraternity data, with vertices colored by block (black=1, red=2)
+plot(f,vertex.col=fkb1$block.membership,main=model1)
+plot(f,vertex.col=fkb2$block.membership,main=model2)
+plot(f,vertex.col=fkb3$block.membership,main=model3)
+plot(f,vertex.col=fkb4$block.membership,main=model4)
+plot(f,vertex.col=fkb5$block.membership,main=model5)
+
+```
+
+#### Research group network Analysis ####
+```{r, eval=TRUE}
+
+# Research Group network
+
+par(mfrow=c(1,1))
+plot(o, main="Research Group network")
+# Let's try fitting some blockmodels.  Here are several variants on C/P:
+okb1<-block.fit(o,c(0,1,1,0))   # No self loops 
+okb2<-block.fit(o,c(1,0,0,0))   # Isolated core
+okb3<-block.fit(o,c(1,1,1,0))   # Core w/in,out ties
+okb4<-block.fit(o,c(1,0,0,1))   # Only self loops
+okb5<-block.fit(o,c(1,NA,NA,0)) # Borgatti and Everett variant
+
+# Plot each model as a "blocked" data matrix
+lab<-okb1$block.membership[okb1$order.vector]
+plot.sociomatrix(okb1$blocked.data,labels=list(lab,lab),main=model1,asp=0.5,cex=0.5)
+lab<-okb2$block.membership[okb2$order.vector]
+plot.sociomatrix(okb2$blocked.data,labels=list(lab,lab),main=model2,asp=0.5,cex=0.5)
+lab<-okb3$block.membership[okb3$order.vector]
+plot.sociomatrix(okb3$blocked.data,labels=list(lab,lab),main=model3,asp=0.5,cex=0.5)
+lab<-okb4$block.membership[okb4$order.vector]
+plot.sociomatrix(okb4$blocked.data,labels=list(lab,lab),main=model4,asp=0.5,cex=0.5)
+lab<-okb5$block.membership[okb5$order.vector]
+plot.sociomatrix(okb5$blocked.data,labels=list(lab,lab),main=model5,asp=0.5,cex=0.5)
+  
+# Plot the research group data, with vertices colored by block (black=1, red=2)
+plot(o,vertex.col=okb1$block.membership,main=model1)
+plot(o,vertex.col=okb2$block.membership,main=model2)
+plot(o,vertex.col=okb3$block.membership,main=model3)
+plot(o,vertex.col=okb4$block.membership,main=model4)
+plot(o,vertex.col=okb5$block.membership,main=model5)
+
+```
+
+#### Business network Analysis ####
+```{r, eval=TRUE}
+
+# Business network
+
+par(mfrow=c(1,1))
+plot(t, main="Business network")
+# Let's try fitting some blockmodels.  Here are several variants on C/P:
+tkb1<-block.fit(t,c(0,1,1,0))   # No self loops 
+tkb2<-block.fit(t,c(1,0,0,0))   # Isolated core
+tkb3<-block.fit(t,c(1,1,1,0))   # Core w/in,out ties
+tkb4<-block.fit(t,c(1,0,0,1))   # Only self loops
+tkb5<-block.fit(t,c(1,NA,NA,0)) # Borgatti and Everett variant
+
+# Plot each model as a "blocked" data matrix
+lab<-tkb1$block.membership[tkb1$order.vector]
+plot.sociomatrix(tkb1$blocked.data,labels=list(lab,lab),main=model1,asp=0.5,cex=0.5)
+lab<-tkb2$block.membership[tkb2$order.vector]
+plot.sociomatrix(tkb2$blocked.data,labels=list(lab,lab),main=model2,asp=0.5,cex=0.5)
+lab<-tkb3$block.membership[tkb3$order.vector]
+plot.sociomatrix(tkb3$blocked.data,labels=list(lab,lab),main=model3,asp=0.5,cex=0.5)
+lab<-tkb4$block.membership[tkb4$order.vector]
+plot.sociomatrix(tkb4$blocked.data,labels=list(lab,lab),main=model4,asp=0.5,cex=0.5)
+lab<-tkb5$block.membership[tkb5$order.vector]
+plot.sociomatrix(tkb5$blocked.data,labels=list(lab,lab),main=model5,asp=0.5,cex=0.5)
+  
+# Plot the business data, with vertices colored by block (black=1, red=2)
+plot(t,vertex.col=tkb1$block.membership,main=model1)
+plot(t,vertex.col=tkb2$block.membership,main=model2)
+plot(t,vertex.col=tkb3$block.membership,main=model3)
+plot(t,vertex.col=tkb4$block.membership,main=model4)
+plot(t,vertex.col=tkb5$block.membership,main=model5)
+
+```
+
+##### (c) Goodness-of-Fit #####
+
+Examine the goodness-of-fit scores (in this case, maximized correlations) for each model on each network. Which model fits best (among those which seek to explain all edges)? How much variance is accounted for by each model?
+\
+\
+*Answer: When I consider the Borgatti and Everett variant with the other four non-dengenerate models, the Borgatti and Everett model seems to have the maximum goodness-of-fit scores. Hence the Borgatti and Everett model fits best for each of the networks. But this is somewhat expected as the Borgatti and Everett model is the least restrictive one. When I ignore the Borgatti and Everett model, I get the isolated core model (that is 1,0,0,0) as the best fit for each of the networks. This suggests that for each of the networks, the core is densely connected but there are not considerable connections between nodes in the core and periphery and nodes within periphery.   
+\
+Considering the variance for all the networks and models, I observe that the maximum variance of 68% is accounted by Borgatti and Everett model for the Radio operator network and the least variance of 5% is accounted by the No self loop (0,1,1,0) model. On an average the Borgatti and Everett model explains a greater percentage of variance than any other model, which could be mainly because it is the least restrictive model. Apart from the Borgatti and Everett model, the isolated core (1,0,0,0) explains the maximum average variance when all the networks are considered. The radio operator network explains the maximum variance for each of the models when considered across all networks. 
+
+#### Goodness-of-fit for Radio Operator network #####
+```{r, eval=TRUE}
+
+  hkb <- c(hkb1$block.gof,hkb2$block.gof,hkb3$block.gof,hkb4$block.gof,hkb5$block.gof)
+  models <- c("0,1,1,0","1,0,0,0","1,1,1,0","1,0,0,1","1,NA,NA,0")  
+
+  # Individual goodness-of-fit scores
+  hkb
+
+  # Printing the model with maximum goodness-of-fit score 
+  print(models[which.max(hkb)])
+  # Ignoring Borgatti and Everett model, the model having maximum goodness-of-fit score 
+  print(models[which.max(c(hkb1$block.gof,hkb2$block.gof,hkb3$block.gof,hkb4$block.gof))])
+  
+  #Variance Calculation
+  vhkb=round(hkb^2*100,4)
+  vhkb 
+  #Printing variance for each model
+  varh = data.frame(models,vhkb)
+  colnames(varh) <- c("Models","Variance")
+  varh
+
+```
+
+#### Goodness-of-fit for fraternity network #####
+```{r, eval=TRUE}
+
+  fkb <- c(fkb1$block.gof,fkb2$block.gof,fkb3$block.gof,fkb4$block.gof,fkb5$block.gof)
+  models <- c("0,1,1,0","1,0,0,0","1,1,1,0","1,0,0,1","1,NA,NA,0")  
+
+  # Individual goodness-of-fit scores
+  fkb
+
+  # Printing the model with maximum goodness-of-fit score 
+  print(models[which.max(fkb)])
+  # Ignoring Borgatti and Everett model, the model having maximum goodness-of-fit score 
+  print(models[which.max(c(fkb1$block.gof,fkb2$block.gof,fkb3$block.gof,fkb4$block.gof))])
+  
+  #Variance Calculation
+  vfkb=round(fkb^2*100,4)
+  vfkb 
+  #Printing variance for each model
+  varf = data.frame(models,round(vfkb,2))
+  colnames(varf) <- c("Models","Variance")
+  varf
+
+```
+
+#### Goodness-of-fit for research group network #####
+```{r, eval=TRUE}
+
+  okb <- c(okb1$block.gof,okb2$block.gof,okb3$block.gof,okb4$block.gof,okb5$block.gof)
+  models <- c("0,1,1,0","1,0,0,0","1,1,1,0","1,0,0,1","1,NA,NA,0")  
+
+  # Individual goodness-of-fit scores
+  okb
+
+  # Printing the model with maximum goodness-of-fit score 
+  print(models[which.max(okb)])
+  # Ignoring Borgatti and Everett model, the model having maximum goodness-of-fit score 
+  print(models[which.max(c(okb1$block.gof,okb2$block.gof,okb3$block.gof,okb4$block.gof))])
+  
+  #Variance Calculation
+  vokb=round(okb^2*100,4)
+  vokb 
+  #Printing variance for each model
+  varo = data.frame(models,round(vokb,2))
+  colnames(varo) <- c("Models","Variance")
+  varo
+
+```
+
+#### Goodness-of-fit for business network #####
+```{r, eval=TRUE}
+
+  tkb <- c(tkb1$block.gof,tkb2$block.gof,tkb3$block.gof,tkb4$block.gof,tkb5$block.gof)
+  models <- c("0,1,1,0","1,0,0,0","1,1,1,0","1,0,0,1","1,NA,NA,0")  
+
+  # Individual goodness-of-fit scores
+  tkb
+
+  # Printing the model with maximum goodness-of-fit score 
+  print(models[which.max(hkb)])
+  # Ignoring Borgatti and Everett model, the model having maximum goodness-of-fit score 
+  print(models[which.max(c(tkb1$block.gof,tkb2$block.gof,tkb3$block.gof,tkb4$block.gof))])
+  
+  #Variance Calculation
+  vtkb=round(tkb^2*100,4)
+  vtkb 
+  #Printing variance for each model
+  vart = data.frame(models,round(vtkb,2))  
+  colnames(vart) <- c("Models","Variance")
+  vart  
+  
+  # Complete variance list for each network and model
+  totvar=cbind(models,vhkb,vfkb,vokb,vtkb)
+  colnames(totvar)<-c("Models","Radio","Fraternity","Research","Business")
+  totvar
+
+```
+
+##### (d) Discussion #####
+
+Based on the above results, how would you describe the overall structure of these data sets? Are they ultimately similar in form or are there notable differences?
+\
+* Answer: From the above analysis, it seems that the best fit for all the networks is the isolated core model among the various core periphery structures for undirected graphs. Hence, they seem ultimately similar in form. 

@@ -1,0 +1,37 @@
+---
+title: "Network Visualization"
+author: "Divya Krishnan"
+date: "Thursday, May 21, 2015"
+output: html_document
+---
+
+#### Network visualization of the Cheyenne Network in EMON dataset ####
+
+```{r, message=FALSE }
+library(statnet)
+library(ggplot2) # for making pretty plots
+library(RColorBrewer) # Pretty Colors using ColorBrewer
+library(intergraph) # required package for GGally
+library(GGally) # ggplot2 extention for use in network graphs
+library(knitr)
+```
+
+```{r}
+
+data(emon)
+
+print("Cheyenne Network in EMON dataset")
+spons<-emon[[1]]%v%"Sponsorship"
+ggnet(emon[[1]],
+        mode = "kamadakawai",
+        alpha = .5,
+        segment.color = "black",
+        node.group=spons,
+        weight.method = "indegree"
+      ) 
+
+
+```
+
+
+

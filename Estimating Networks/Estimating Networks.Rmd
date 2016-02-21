@@ -1,0 +1,156 @@
+---
+title: 'Estimating Networks'
+author: 'Divya Krishnan'
+date: 'Friday May 22nd, 2015'
+output: html_document
+---
+
+### Estimating Networks ###
+
+[^1]: Problems originally written by C.T. Butts (2009).
+
+\  
+
+```{r, message=FALSE}
+# Loading necessary libraries
+library(statnet)
+library(sna)
+library(network)
+library(knitr)
+library(degreenet)
+#setwd("C:/Users/Divya/Desktop/576/Problem sets")
+# Loading relevant datasets 
+load("estimating_networks.Rdata")
+# Listing variables 
+ls()
+```
+
+\  
+
+#### Perception and Recall of Social Relationships  ####
+
+Pick you favorite social network dataset, this can be data we have encountered in class, data you have collected as part of your own research, or data that was used in one of the readings for the course. Write a short response (2-3 paragraphs) discussing how issues of informant accuracy may or may not affect this data. Be sure to specifically discuss how possible error might be addressed.
+\
+* Answer: I have chosen the Bernard, Killworth, and Sailer (BKS) studies where the subjects were asked to self-report their frequency of interaction with the other members of the group. It consists of 4 networks - Radio operator network, Fraternity network, Research group network and Business network. 
+\
+The BKS studies tries to find out the issues in self-reported data sets. But what if the self-reported datasets are inaccurate? Then the comparison between observed and informant network would be erroneous and hence the result would also suffer.
+\
+Some of the potential issues in the informant network could be -
+\
+1. False negative nodes - This refers to nodes being absent from the network that should have been present. Considering the BKS network datasets, they are based on self reported data about frequency of interaction with other members of the group. The radio operator network has 44 vertices, fraternity network has 58 vertices, the research group network has 40 vertices and the business network has about 34 vertices. With so many members, it is possible that the newest members could be forgotten to be included in the network.
+\
+2. False positive nodes - This refers to the nodes which should not be present but are present due to error. This type of issue can mainly occur because of the time interval for which the BKS networks were observed. For example, in a fraternity there are new members coming in and leaving as well. Then it is possible for some members to consider individuals who have left the network while others don't. This time issue could cause both 'False negative nodes' and 'False positive nodes' issue.
+\
+3. False negative edges - This refers to edges which are present but were not recorded. There is high probability of this issue occuring in the BKS networks as they are mainly about recording interactions. As stated in the Network Inference lecture, short-term social structures are more difficult to recall. Recalling the frequency of interactions for the members would be a short-term social structure and it is high likely that they would forget it, leading to the issue of false negative edges.
+\
+4. False positive edges - This refers to edges which should not be present but were recorded due to error. There are less chances of this happening but is still possible if the definition of an interaction is not clear to the members of the network. If an interaction is defined as 'talking to another person for atleast 30 minutes' and if the members are not aware of the definition, they may report an interaction which is less than 30 minutes. 
+\
+Some ways to avoid the above mentioned errors -
+\
+1. Automate the interactions - If the interactions are automated through some devices, the informant network could be avoid a lot of errors. If each of the members as predetermined nodes were given a  device that could record an edge anytime they were within a small spatial distance from each other, it would eliminate a lot of the above mentioned issues.
+\
+2. Video record the interactions - Another way of eliminating error would be to video record the environment in which the members interact. This would make the network data more robust and accurate.
+\
+Reference- 
+\
+1. J. Wang, D., Shi, X., A. McFarland, D., & Leskovec, J. (2012). Measurement error in network data: A re-classification. Social Networks. Retrieved from http://cs.stanford.edu/people/jure/pubs/error-socnets12.pdf
+ 
+\ 
+
+#### Modeling Degree Distributions  ###
+
+In the data for this problem set you will find a dataset named `EnronMailUSC1`. This object is the time-aggregated network of emails among 151 employees of Enron Corporation, as prepared by researchers at USC. 
+
+##### (a) Degree Distribtuions #####
+
+Begin your investigation by plotting histograms of the indegree, outdegree, and total degree for the Enron email data. Interpret the patterns you see. Do any suggest (or rule out) specific functional form and/or partner formation processes?
+\
+
+* Answer: I have tried comparing the histogram of indegree,outdegree and totaldegree to the various named probability distributions. The number of observations were taken as equal to the number of vertices of EnronMailUSC1 network i.e 151. The probability was taken as 0.1 . The histogram of indegree resembles a binomial distribution whereas the outdegree and total degree distributions are similar to f-distribution.
+\
+The histogram of the indegree looks similar to a binomial distribution with the following parameters - number of trialss=100.
+\
+The histogram of the outdegree looks similar to a f-distribution with the following parameters - degrees of freedom =5.
+\
+The histogram of the outdegree looks similar to a f-distribution with the following parameters - degrees of freedom =12.
+\
+Thinking about the underlying processes is a challenge, as  there could be multiple explainations considering the degree distributions. The indegree distribution can be explained by a few people receiving a lot of emails from others. These people could the Directors or executive board members who receive a lot of emails with the reports and updates from their reportees.The outdegree distribution could be explained by most members not sending a lot of emails. This could be because the most common knowledge sharing platform is not emails but rather some other way such as shared folder, wiki or professional networking site. The total degree distribution could be explianed by the summing up of indegree and outdegree values. The peaks on indegree and outdegree peak at 10-20 range and the 10-20 range is the highest peak in the total degree distribution. So the total degree distribution gets accentuated in the ranges where indegree and outdegree are high and gets averaged out in case one of them is a low value.  
+
+\
+
+```{r}
+
+plot(EnronMailUSC1,main="Enron EMail Dataset")
+
+n<-151 # Vertices of EnronMailUSC1
+s<-100 # Number of trials
+p<-0.1 # probability
+
+Indegree<-degree(EnronMailUSC1, cmode="indegree")
+Outdegree<-degree(EnronMailUSC1, cmode="outdegree")
+Totaldegree<-degree(EnronMailUSC1, cmode="freeman")
+hist(Indegree)
+hist(Outdegree)  
+hist(Totaldegree) 
+
+par(mfrow=c(1,1))
+hist(Indegree)
+hist(rbinom(n,s,p))
+hist(Outdegree) 
+hist(rf(n,5,5,p))
+hist(Totaldegree)
+hist(rf(n,12,12,p))
+
+```
+
+##### (b) Degree Distribution Models #####
+
+Using the `degreenet` package, fit models to the indegree, outdegree, and total degree distributions for the Enron dataset. Which model provides the best fit in each case in terms of AICC and BIC? In addition to goodness-of-fit information, show the parameters of the best-fitting model. 
+\
+* Answer: 
+\
+For Indegree, Outdegree and Total degree distributions, the best fit model is the Negative binomial distribution as it has the lowest values for AICC and BIC.
+\
+
+```{r}
+
+Fit.models<-function(dist)
+{      
+    fit.war<-awarmle(dist)                            
+    fit.yule<-ayulemle(dist)
+    fit.geo<-ageomle(dist)
+    fit.nb<-anbmle(dist)
+    fit.poi<-apoimle(dist)
+    fit.gy<-agymle(dist,guess=c(10,6000))
+    fit.nby<-anbymle(dist,guess=c(9,100,0.3))
+    
+    fittab.dist<-rbind(                                     
+      llpoiall(v=fit.poi$theta,x=dist),
+      llgeoall(v=fit.geo$theta,x=dist),
+      llnball(v=fit.nb$theta,x=dist),
+      llyuleall(v=fit.yule$theta,x=dist),
+      llgyall(v=fit.gy$theta,x=dist),
+      llnbyall(v=fit.nby$theta,x=dist),
+      llwarall(v=fit.war$theta,x=dist)
+    )
+    rownames(fittab.dist)<-c("Poisson","Geometric","NegBinom","Yule","GeoYule",
+      "NegBinYule","Waring")
+    fittab.dist
+}
+
+Fit.models(Indegree)
+Fit.models(Outdegree)
+Fit.models(Totaldegree)
+
+# Calculating parameters of the best fit model - Negative Binomial model
+inbest <- anbmle(Indegree)
+# Paramters of best fit model for Indegree
+inbest
+outbest <- anbmle(Outdegree)
+# Paramters of best fit model for Outdegree
+outbest
+totbest <- anbmle(Totaldegree)
+# Paramters of best fit model for Totaldegree
+totbest
+
+```

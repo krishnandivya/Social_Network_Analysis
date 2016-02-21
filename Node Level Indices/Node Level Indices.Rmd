@@ -1,0 +1,355 @@
+---
+title: 'Node Level Indices'
+author: 'Divya Krishnan'
+date: 'Wednesday, April 15, 2015'
+output: html_document
+---
+
+### Concepts: Network Data and Node-Level Indices[^1] ###
+
+[^1]: Problems originally written by C.T. Butts (2009).
+
+\  
+
+```{r}
+# Adding libraries
+library(statnet)
+library(network)
+library(knitr)
+# setting working directory
+setwd("C:/Users/Divya/Desktop/Purple usb/Spring'15/576/SNA/Node level indices")
+load("Node_Level_Indices.Rdata")
+# Listing variables 
+ls()
+```
+
+#### Data Info: Southern Women Data Set####
+
+This dataset is about meeting of 18 southern women in informal social events. The incidence matrix for the famous "Southern Women" dataset from Davis, Gardner, and Gardner's 1941 study of class and social interaction in the *Deep South*[^2]. The matrix shows the attendance of 18 women at 14 informal social events during a nine-month observation period, based on various data sources such as interviews, guest lists, and participant observation. This is clearly two-mode data, with individuals as the "row" vertices and events as the "column vertices". More information on the dataset can be found here - https://networkdata.ics.uci.edu/netdata/html/davis.html
+
+[^2]:  Davis, Gardner, and Gardner.  (1941) *Deep South*. Chicago: The University of Chicago Press.
+
+##### (a) Exploring Network Data ##### 
+
+Printing the matrix, and plotting it using `plot.sociomatrix`. 
+\
+\
+* Who seems to be the most active? 
+\
+Answer: Evelyn, Theresa and Nora seem to be most active as they have attended the highest number of events (number of events=8) in the dataset.
+\
+\
+* Are all the women active in the same events? Describe what you observe.
+\
+Answer: No, all the women are not active in the same set of events. A major subset of the women seem to be active in events E1 to E9 and another subset of women seem to be active on events E6 to E14. This shows that there are possibly 2 social groups of women who frequent same events. This shows that there are 2 clusters within this dataset. There are events E6 to E9 where there is overlap between the two social groups of women. 
+\
+
+```{r}
+# The matrix of Southern Women Dataset
+sw.incidence
+# Plotting the matrix with appropriate aspect ratio and size for labels
+plot.sociomatrix(sw.incidence, main="Plotting Southern Women Dataset",asp=0.5,cex=0.5)
+
+```
+
+##### (b) One-Mode Projections #####
+
+Consider how these women are connected through events. To do this, form the (valued) row projection of `sw.incidence` and say it as `sw.p2p`. You might find it helpful to know that `%*%` is R's inner product operator, and `t()` is a function to transpose a matrix. `sw.p2p[i,j]` should now be the number of events that *i* and *j* have in common. Plot this matrix as in part (a) and answer the following:
+\
+* What does the row projection tell us about how people are connected in this social group? 
+\
+Answer: The row projections tells us how many common events do the women share with each other. We observe that there are groups of women who follow the active members - Evelyn, Theresa and Nora, in attending events. It is possible that these active members have a network and they coerce their close friends to frequent the same or similar events as the ones they are attending. 
+\
+\
+* Does the group seem to have subdivision? 
+\
+Answer: There is clearly a subdivision and we can see 2 clusters of social group in the dataset. One of the cluster is around Evelyn and Theresa. As they both are the most active women, they have lot of other women who go to similar events as them. Then we have the second cluster around Nora, who is again one of the most active women. There are a couple of women who frequent the same events as that of Nora.
+\
+\
+* Do some members seem more "central" than others? If so, who?
+\
+Answer: Yes, some members seem more central than others. As stated above, Evelyn and Theresa seem central in the first cluster and Nora seems central in the second cluster. 
+\
+
+```{r}
+# row projections
+sw.p2p<-sw.incidence%*%t(sw.incidence)
+# The matrix after row projections
+sw.p2p
+# Plotting one-mode projection
+plot.sociomatrix(sw.p2p, main="Plotting one-mode projections",asp=0.5,cex=0.5)
+
+```
+
+##### (c) Entailment Structures #####
+
+Now, we are going to explore the *entailment structures* of women and events. We can construct a row-wise entailment matrix using the following code. The new matrix will be a person by person matrix such that `sw.r.entail[i,j]==1` if person *j* attends all of person *i*'s events. 
+
+```{r} 
+# Code to determine the row-wise entailment structure
+# Create a new empty matrix
+sw.r.entail <- matrix(0, nc=nrow(sw.incidence), nr=nrow(sw.incidence))
+# Populate the matrix using a nested 'for' loop
+for (i in 1:nrow(sw.incidence)){ # Pick an women i
+  for (j in 1:nrow(sw.incidence)){ # And and women j
+    sw.r.entail[i,j] <- all(sw.incidence[j,] >= sw.incidence[i,]) # Compare them 
+  }
+}
+rownames(sw.r.entail) <- rownames(sw.incidence) # Renames the nodes
+colnames(sw.r.entail) <- rownames(sw.incidence)
+
+# Code to determine the column-wise entailment structure
+# Create a new empty matrix
+sw.c.entail <- matrix(0, nc=ncol(sw.incidence), nr=ncol(sw.incidence))
+# Populate the matrix using a nested 'for' loop
+for (i in 1:ncol(sw.incidence)){ # Pick an women i
+  for (j in 1:ncol(sw.incidence)){ # And and women j
+    sw.c.entail[i,j] <- all(sw.incidence[j,] >= sw.incidence[i,]) # Compare them 
+  }
+}
+rownames(sw.c.entail) <- colnames(sw.incidence) # Renames the nodes
+colnames(sw.c.entail) <- colnames(sw.incidence)
+```
+
+Use this function to create the entailment matrices (row-wise and column-wise) and produce a visualization of the entailment network for each case. Use the matrices and visualizations to answer:
+
+\
+* What does a path tell us?
+\
+Answer: The path in the row entailment matrix tells us which woman has attended a subset of the another woman's event set.For example consider the path - Myrna->Katherine->Sylvia. Here, Katherine has attended all events attended by Myrna and Sylvia has attended all events attended by Katherine. Hence, it means that Sylvia has attended a large set of events which include the subset of events attended by Katherine, which in turn contains the subset of events attended by Myrna. So the end node in a path in the row entailment matrix, gives us the woman who has attended a superset of events. The path also tells us which women have common events with others.
+\
+\
+* What do mutual (i.e. bidirectional) dyads mean?
+\
+Answer: Bidirectional dyads mean that both women have attended the same set of events. For example, consider the bidirectional dyad, Olivia and Flora. The path from Olivia to Flora means that Flora has attended all events attended by Olivia. The path from Flora to Olivia means that Olivia has attended all events attended by Flora. Hence, the set of events attended by Olivia and Flora have to be same for the above statements to be true. Hence, bidirectional dyads in row entailment matrix gives us women who have attended the same set of events.
+\
+\
+* What is special about isolates?
+\
+Answer: Isolates is special as they have a combination of events that is not attended by any other women in the row entailment matrix. For example, consider Helen. She has attended the set of events, given by (E7,E8,E10,E11,E12,E13,E14). This same combination of events have not been attended by anyone else in the dataset.
+
+```{r} 
+# For row-wise entailment structure
+sw.r.entail
+plot.sociomatrix(sw.r.entail, main="Plotting row-wise entailment",asp=0.5,cex=0.5)
+# Creating a network object for row-wise entailment matrix
+nswr <- network(sw.r.entail, directed=TRUE)
+plot(nswr,main="Graph of row-wise entailment",displaylabels=T,boxed.labels=F,cex=0.5)
+
+# For column-wise entailment structure
+sw.c.entail
+plot.sociomatrix(sw.c.entail, main="Plotting column-wise entailment",asp=0.5,cex=0.5)
+# Creating a network object for column-wise entailment matrix
+nswc <- network(sw.c.entail, directed=TRUE)
+plot(nswc,main="Graph of column-wise entailment",displaylabels=T,boxed.labels=F,cex=0.5)
+
+```
+
+\  <!-- Some vertical space. -->
+
+#### Node-Level Indices and Hypothesis Tests ####
+
+In the data for this assignment, you will find the following network objects: `silsys.ad.ilas` and `silsys.fr.ilas`. These are network objects containing data from David Krackhardt's famous Silican Valley Systems study.[^3] The two networks consist of advice-seeking ties and friendship ties (respectively). In addition each network contains several other attributes. 
+
+[^3]: Krackhardt, David. (1990) "Assessing the Political Landscape: Structure, Cognition, and Power in Organizations." *ASQ*, 35(2): 342-369.
+
+##### (a) Computing Node-Level Indices #####
+
+Compute indegree, outdegree, betweenness and eigenvector centrality scores for all individuals in each of the two networks. A useful trick to combine vectors or matrices `a`, `b`, and `c` into a single matrix using the `cbind` command as follows: `cbind(a,b,c)`. Print the centrality scores. 
+
+* Who are some of the most central individuals in the advice-seeking network? In the friendship network?
+\
+Answer: The most central members in the advice network depends on the type of centrality that we are looking at. 
+\
+According to indegree centrality, node 5 or "Ev" is the most central.
+\
+According to outdegree centrality, node 13 or "Mel" is the most central.
+\
+According to betweenness centrality, node 19 or "Steve" is the most central.
+\
+According to Eigen vector centrality, node 25 or "York" is the most central.
+\
+For the friendship network, node 29 or "Chris" is the most central node for each of the 4 different centrality measures.
+
+```{r}
+# Centrality measures for Advice network
+
+Indegree.ad <- degree(silsys.ad.ilas, cmode="indegree")    #Indegree
+Outdegree.ad <- degree(silsys.ad.ilas, cmode="outdegree")  #Outdegree
+Betweenness.ad <- betweenness(silsys.ad.ilas, gmode="digraph") #Betweenness
+EigenVector.ad <- evcent(silsys.ad.ilas, gmode="digraph") #Eigen Vector Centrality
+# Creating centrality matrix for advice network
+ad.centrality<-cbind(Indegree.ad,Outdegree.ad,Betweenness.ad,EigenVector.ad)
+ad.centrality
+# Nodes with highest centrality values
+MaxValueNodes.ad = c(which.max(Indegree.ad),which.max(Outdegree.ad),which.max(Betweenness.ad),which.max(EigenVector.ad))
+MaxValueNodes.ad
+# Getting the names of the nodes with maximum centrality measures
+ad.names<-silsys.ad.ilas%v%"vertex.names"
+ad.max.names<-c(ad.names[MaxValueNodes.ad[1]],ad.names[MaxValueNodes.ad[2]],ad.names[MaxValueNodes.ad[3]],ad.names[MaxValueNodes.ad[4]])
+# Names of people with Highest Indegree, Outdegree, Betweenness and EigenVector in Advice network
+ad.max.names
+# Maximum Values
+MaxValues.ad = c(max(Indegree.ad),max(Outdegree.ad),max(Betweenness.ad),max(EigenVector.ad))
+MaxValues.ad
+
+# Centrality measures for Friendship network
+
+Indegree.fr <- degree(silsys.fr.ilas, cmode="indegree")   # Indegree 
+Outdegree.fr <- degree(silsys.fr.ilas, cmode="outdegree")  # Outdegree 
+Betweenness.fr <- betweenness(silsys.fr.ilas, gmode="digraph") #Betweenness
+EigenVector.fr <- evcent(silsys.fr.ilas,gmode="digraph") #Eigen Vector Centrality
+# Creating centrality matrix for friendship network
+fr.centrality<-cbind(Indegree.fr,Outdegree.fr,Betweenness.fr,EigenVector.fr)
+fr.centrality
+# Nodes with highest centrality values
+MaxValueNodes.fr = c(which.max(Indegree.fr),which.max(Outdegree.fr),which.max(Betweenness.fr),which.max(EigenVector.fr))
+MaxValueNodes.fr
+# Getting the names of the nodes with maximum centrality measures
+fr.names<-silsys.fr.ilas%v%"vertex.names"
+fr.max.names<-c(fr.names[MaxValueNodes.fr[1]],fr.names[MaxValueNodes.fr[2]],fr.names[MaxValueNodes.fr[3]],fr.names[MaxValueNodes.fr[4]])
+# Names of people with Highest Indegree, Outdegree, Betweenness and EigenVector in Friendship network
+fr.max.names
+# Maximum Values
+MaxValues.fr = c(max(Indegree.fr),max(Outdegree.fr),max(Betweenness.fr),max(EigenVector.fr))
+MaxValues.fr
+
+```
+
+##### (b) Comparing Node-Level Indices #####
+
+The `cor` command calculates correlations. You can apply this function to a matrix to compute the correlation matrix - correlations for all pairs of columns. Compute the within and between network correlation matrices for the centrality scores you computed in part (a). Print this table and answer the following:
+\
+\
+* Does centrality in the advice-seeking network correspond (or not) to centrality in the friendship network?
+\
+Answer: The centrality in the advice network slightly corresponds to centrality in the friendship network. There are mostly positive correlations among the centrality measures of the 2 networks but none of the correlations go beyond 0.4. Most correlations are closer to zero than to 1 or -1.  There is only one slight negative correlation between Indegree measure of advice network and Eigen Vector measure of friendship network.
+\
+\
+* What centrality measures are most strong correlated? Least strongly correlated?
+\
+Answer: The Betweenness centrality measure of the advice and friendship network are the most strongly correlated with a value of 0.445. The Eigen vector centrality measure of the advice and friendship network is the least strongly correlated with a value of 0.007.
+\
+
+
+```{r}
+# For advice network
+cor(ad.centrality)
+# For friendship network
+cor(fr.centrality)
+# Correlations between advice and friendship network
+cor(ad.centrality,fr.centrality)
+
+```
+
+##### (c) Relating Node-Level Indices to Covariates #####
+
+Assess the relationship between the "Charisma" (charisma, as rated by fellow employees) and "Potency" (ability to overcome opposition in order to achieve goals, as rated by fellow employees) vertex attributes and the centrality scores you computed in part (a). 
+
+Report the results of these tests as a table showing the observed correlation of each attribute with each centrality measure, along with the two-sided *p*-value for the appropriate test in each case. 
+
+\
+* How do charisma and potency appear to relate to position structure at Silicon Valley Systems?
+\
+Answer: From the correlation matrix of Charisma, we observe that the p value for the permutation test between Outdegree and Charisma of the advice network is a very small value (that is, it is very close to zero). The same is the case between EigenVector centrality and Charisma in the advice network. Hence, it means that the null hypothesis is false and hence the observed correlation between Outdegree & Charisma and EigenVector & Charisma is statiscally significant. The correlation between Outdegree and Charisma is -0.4556, which means that there is moderately negative correlation between Outdegree and Charisma.The correlation between EigenVector and Charisma is -0.3875, which also shows moderate negative correlation. Charisma negatively correlates to Outdegree and EigenVector of the advice network. The Charisma value for the node with highest Outdegree (node 13), is zero. That means "Mel" (name of node 13) who seeks maximum advice has zero Charisma. It is likely that the person is in a lower position in the Silicon Valley System, seeks advice from maximum number of people and hence is observed to have less Charisma. This also means that the person who has lowest outdegree or who seeks the least advice has maximum Charisma. Such a person maybe in a higher position in the network as they seek less advice and make decisions on their own.  The Charisma value for the node with highest EigenVector (node 25), is 3.35. The EigenVector value for "York" (name of node 25), is 0.4727 which shows that the person who has connections to central people in the network need not necessarily have high Charisma.   
+\
+From the corrrelation matrix of Potency, we observe that the p value for the permutation test between Indegree and Potency of the advice network is a very small value (that is, it is very close to zero).Hence, it means that the null hypothesis is false and hence the observed correlation between Indegree and Potency in the advice network is statiscally significant. The correlation between Indegree and Potency is 0.5834, which means that there is moderately positive correlation between Indegree and Potency. Potency positively correlates to Indegree centrality measure of the advice network. Hence it means that people in the Silicon Valley Systems having more Potency tend to seek more advice from everyone else. The Potency value for the "Ev"(name of node 5, having highest degree), in the advice network, is 6.18. The people with highest Potency are able to overcome opposition in the Silicon Valley System. Hence, these people are in a higher position as maximum people seek advice from them.
+\
+
+```{r}
+perm.cor.test<-function(x,y,niter=5000){  #Define a simple test function
+  c.obs <- cor(x,y,use="complete.obs")
+  c.rep <- vector()
+  for(i in 1:niter)
+    c.rep[i] <- cor(x,sample(y),use="complete.obs")
+  invisible(list(obs=c.obs,rep=c.rep))
+  return(mean(abs(c.rep)>=abs(c.obs)))
+}
+# Extracting Charisma and Potency attributes
+Charisma.ad <- silsys.ad.ilas%v%"Charisma"
+Potency.ad <- silsys.ad.ilas%v%"Potency"
+Charisma.fr <- silsys.fr.ilas%v%"Charisma"
+Potency.fr <- silsys.fr.ilas%v%"Potency"
+
+#Correlation between Charisma and Potency and the centrality measures of advice network
+cor(cbind(Charisma.ad,Potency.ad),ad.centrality)
+
+#Correlation between Charisma and Potency and the centrality measures of friendship network
+cor(cbind(Charisma.fr,Potency.fr),fr.centrality)
+
+obs.c.ad<-cor(Charisma.ad,ad.centrality)
+obs.c.ad<-t(obs.c.ad)
+obs.c.fr<-cor(Charisma.fr,fr.centrality)
+obs.c.fr<-t(obs.c.fr)
+# Observed correlations
+obs.c<-rbind(obs.c.ad,obs.c.fr)
+
+# Permutation test between Charisma and centrality measures of advice network
+pvalue.c.ad.in<-perm.cor.test(Charisma.ad,Indegree.ad)
+pvalue.c.ad.out<-perm.cor.test(Charisma.ad,Outdegree.ad)
+pvalue.c.ad.bet<-perm.cor.test(Charisma.ad,Betweenness.ad)
+pvalue.c.ad.ev<-perm.cor.test(Charisma.ad,EigenVector.ad)
+pvalue.c.ad<-rbind(pvalue.c.ad.in,pvalue.c.ad.out,pvalue.c.ad.bet,pvalue.c.ad.ev)
+
+# Permutation test between Charisma and centrality measures of friendship network
+pvalue.c.fr.in<-perm.cor.test(Charisma.fr,Indegree.fr)
+pvalue.c.fr.out<-perm.cor.test(Charisma.fr,Outdegree.fr)
+pvalue.c.fr.bet<-perm.cor.test(Charisma.fr,Betweenness.fr)
+pvalue.c.fr.ev<-perm.cor.test(Charisma.fr,EigenVector.fr)
+pvalue.c.fr<-rbind(pvalue.c.fr.in,pvalue.c.fr.out,pvalue.c.fr.bet,pvalue.c.fr.ev)
+
+# p value of Charisma attribute of advice and friendship networks
+pvalue.c<-rbind(pvalue.c.ad,pvalue.c.fr)
+
+Charisma.corr<-cbind(obs.c,pvalue.c)
+rownames(Charisma.corr)<-c("Indegree_Advice","Outdegree_Advice","Bet_Advice","EV_Advice","Indegree_Friendship","Outdegree_Friendship","Bet_Friendship","EV_Friendship")
+colnames(Charisma.corr)<-c("Obs_Correlation","p_value")
+
+obs.p.ad<-cor(Potency.ad,ad.centrality)
+obs.p.ad<-t(obs.p.ad)
+obs.p.fr<-cor(Potency.fr,fr.centrality)
+obs.p.fr<-t(obs.p.fr)
+# Observed correlation of Potency
+obs.p<-rbind(obs.p.ad,obs.p.fr)
+
+# Permutation test between Potency and centrality measures of advice network
+pvalue.p.ad.in<-perm.cor.test(Potency.ad,Indegree.ad)
+pvalue.p.ad.out<-perm.cor.test(Potency.ad,Outdegree.ad)
+pvalue.p.ad.bet<-perm.cor.test(Potency.ad,Betweenness.ad)
+pvalue.p.ad.ev<-perm.cor.test(Potency.ad,EigenVector.ad)
+# p value of permutation tests between potency and centrality measures of advice network
+pvalue.p.ad<-rbind(pvalue.p.ad.in,pvalue.p.ad.out,pvalue.p.ad.bet,pvalue.p.ad.ev)
+
+# Permutation test between Potency and centrality measures of friendship network
+pvalue.p.fr.in<-perm.cor.test(Potency.fr,Indegree.fr)
+pvalue.p.fr.out<-perm.cor.test(Potency.fr,Outdegree.fr)
+pvalue.p.fr.bet<-perm.cor.test(Potency.fr,Betweenness.fr)
+pvalue.p.fr.ev<-perm.cor.test(Potency.fr,EigenVector.fr)
+# p value of permutation tests between potency and centrality measures of advice network
+pvalue.p.fr<-rbind(pvalue.p.fr.in,pvalue.p.fr.out,pvalue.p.fr.bet,pvalue.p.fr.ev)
+
+# p value of Potency attribute of advice and friendship networks
+pvalue.p<-rbind(pvalue.p.ad,pvalue.p.fr)
+
+Potency.corr<-cbind(obs.p,pvalue.p)
+rownames(Potency.corr)<-c("Indegree_Advice","Outdegree_Advice","Bet_Advice","EV_Advice","Indegree_Friendship","Outdegree_Friendship","Bet_Friendship","EV_Friendship")
+colnames(Potency.corr)<-c("Obs_Correlation","p_value")
+
+# Observed correlations and p value of Charisma attribute of Advice and Friendship network
+Charisma.corr
+
+# Observed correlations and p value of Potency attribute of Advice and Friendship network
+Potency.corr
+
+# Based on observed correlation and p value -
+#Charisma value of node with highest outdegree, that is node 13, in the advice network
+Charisma.ad[13]
+
+#Charisma value of node with highest EigenVector, that is node 25, in the advice network
+Charisma.ad[25]
+
+#Potency value of node with highest Indegree, that is node 5, in the advice network
+Potency.ad[5]
+
+```
+

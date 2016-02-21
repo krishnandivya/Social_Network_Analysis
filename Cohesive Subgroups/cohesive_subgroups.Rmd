@@ -1,0 +1,287 @@
+---
+title: 'Cohesive Subgroups'
+author: Divya Krishnan
+date: 'Wednesday May 13, 2015'
+output: html_document
+---
+
+\
+
+### Cohesive Subgroups and N[^1] ###
+
+[^1]: Problems originally written by C.T. Butts (2009).
+
+\  
+
+```{r, message=FALSE}
+# Loading necessary libraries
+library(statnet)
+library(sna)
+library(network)
+library(knitr)
+# Loading relevant datasets 
+load("cohesive_subgroups.Rdata")
+# Listing variables 
+ls()
+```
+
+\  
+
+#### Cohesive Subgroups ####
+
+In this problem we use data collected by Krackhardt (1987), `kfr` capturing self-reported friendship ties among 21 managers in a high-tech firm. This data is directed and unvalued, it is possible for $i$ to nominate $j$ as a friend without reciprocation.
+
+##### (a) Cliques ##### 
+
+Using the `clique.census` command, perform the following analyses on `kfr`:
+
+* Obtain a length-tabulation of clique membership by vertex.
+* Obtain the combined clique co-membership matrix.
+* Use the clique co-membership matrix to obtain a cohesion-based blockmodel of `kfr`. You may find the commands `hclust` `cutree` and `blockmodel` helpful here. Show the dendrogram (with cutoff value), block image matrix, and block image.
+
+```{r}
+# Creating network object
+nkfr<-network(kfr,directed=FALSE)
+# calculating clique census
+cs<-clique.census(kfr,mode="digraph")
+cs$clique.count                                     # Count of cliques by vertex
+cs$cliques                                          # Enumerate all cliques
+
+# Getting combined co-membership information
+cs<-clique.census(kfr,clique.comembership="sum")    # Adding up all
+cs$clique.count
+cs$clique.comemb
+cs<-clique.census(kfr,clique.comembership="bysize") # Sort by size
+clq1<-cs$clique.comemb[1,,]                                # 1-cliques
+clq2<-cs$clique.comemb[2,,]                                # 2-cliques
+clq3<-cs$clique.comemb[3,,]                                # 3-cliques
+
+par(mfrow=c(1,1))
+coords<-gplot(kfr,label=network.vertex.names(nkfr),cex=0.25,label.pad = 0.10,label.border=0.5,label.cex=0.75,xlab="kfr network")
+gplot(clq1,label=network.vertex.names(nkfr),cex=0.25,label.pad = 0.10,label.border=0.5,label.cex=0.75,xlab="1-cliques in kfr network")
+gplot(clq2,label=network.vertex.names(nkfr),cex=0.25,label.pad = 0.10,label.border=0.5,label.cex=0.75,xlab="2-cliques in kfr network")
+gplot(clq3,label=network.vertex.names(nkfr),cex=0.25,label.pad = 0.10,label.border=0.5,label.cex=0.75,xlab="3-cliques in kfr network")
+
+#### Cohesion-based blockmodel ####
+csco<-clique.census(kfr,clique.comembership="sum")$clique.comemb
+# Using hclust for clustering
+hc<-hclust(as.dist(1/(csco+1)))                      # Cluster by co-membership
+plot(hc)
+# Determining the number of clusters by height
+rect.hclust(hc,k=8)                                # Plot a cutoff point
+ct<-cutree(hc,k=8)                                 # Cut the clusters
+lbl<-data.frame(ct)
+# Visualizing sub groups based on co-membership
+gplot(kfr,label=rownames(lbl),vertex.col=ct,xlab="Plot of Cohesive subgroups based on co-membership")   
+vals<-sort(unique(ct))   
+legend("topleft",fill=1:length(vals),legend=vals,bty="n")
+plot.sociomatrix(kfr[order(ct),order(ct)])          # Show in matrix form
+
+bm<-blockmodel(kfr,ct)
+bm
+# View the block image
+gplot(bm$block.model,vertex.cex=table(ct),label=unique(ct),edge.lwd=3*bm$block.model,diag=TRUE,label.pad=0.1,xlab="Block image")                                         
+
+```
+
+##### (b) K-Cores #####
+
+Use the `kcores` command to calculate the total degree $k$-cores of `kfr`. Visualize the network, indicating by size, shape, or color the core number for each vertex. 
+
+```{r}
+
+gplot(kfr,xlab="kfr network",label=network.vertex.names(nkfr),label.pad = 0.10,label.border=0.5,label.cex=0.75) 
+# Calculating kcores
+kc1<-kcores(kfr)                    
+# Examining the core distribution
+table(kc1)
+kc1
+
+# Visualizing the core structure
+
+# 2-core
+gplot(kfr[kc1>1,kc1>1],vertex.col=heat.colors(max(kc1)+1)[kc1+1],xlab="2 core")                      
+# 3-core
+gplot(kfr[kc1>2,kc1>2],vertex.col=heat.colors(max(kc1[kc1>1])+1)[kc1[kc1>1]+1],xlab="3 core")        
+# 4-core
+gplot(kfr[kc1>3,kc1>3],vertex.col=heat.colors(max(kc1[kc1>2])+1)[kc1[kc1>2]+1],xlab="4 core")        
+# 5-core
+gplot(kfr[kc1>4,kc1>4],vertex.col=heat.colors(max(kc1[kc1>3])+1)[kc1[kc1>3]+1],xlab="5 core")        
+# 6-core
+gplot(kfr[kc1>5,kc1>5],vertex.col=heat.colors(max(kc1[kc1>4])+1)[kc1[kc1>4]+1],xlab="6 core")        
+# 7-core
+gplot(kfr[kc1>6,kc1>6],vertex.col=heat.colors(max(kc1[kc1>5])+1)[kc1[kc1>5]+1],xlab="7 core")        
+
+# Visualize the corresponding shells 
+gplot(kfr,vertex.col=heat.colors(max(kc1[kc1==3])+1)[kc1[kc1==3]+1],xlab="3 shell")        # 3-shell
+gplot(kfr,vertex.col=heat.colors(max(kc1[kc1==5])+1)[kc1[kc1==5]+1],xlab="5 shell")        # 5-shell
+gplot(kfr,vertex.col=heat.colors(max(kc1[kc1==6])+1)[kc1[kc1==6]+1],xlab="6 shell")        # 6-shell
+gplot(kfr,vertex.col=heat.colors(max(kc1[kc1==7])+1)[kc1[kc1==7]+1],xlab="7 shell")        # 7-shell
+
+# Using shells to create a blockmodel
+bm<-blockmodel(kfr,kc1+1)
+# Removing missing cores
+bmi<-bm$block.model[c(4,6,7,8),c(4,6,7,8)]                    
+plot.sociomatrix(bmi^0.5)                     
+
+```
+
+##### (c) Discussion #####
+
+Based on the analysis in parts (a) and (b), how would you summarize the structure of this network; in particular, how many distinct dense clusters do there appear to be?
+\
+* Answer: Looking at the cliques, we observe that there are 3 cliques. The network does not have any isolates but has some isolated dyads and triads. Looking at the k-cores, we observe that there is one main dense cluster of 7 cores. Considering the cluster dendogram based on co-membership, we observe that the clusters get more dense as we reduce the number of clusters. Hence the blockmodel image is influenced by the number of clusters or the height that we choose to cut the dendogram on. Observing the block image for 8 number of clusters, we see that there is one main dense cluster. 
+\
+Considering all the above factors, there appears to be one main dense cluster, consisting of 10 vertices - 1,2,4,5,11,12,15,17,19,21. These vertices occur in the 7 core subgroup. This cluster has more ties between the members than outside the cluster.
+
+
+\  <!-- Some vertical space. -->
+
+#### Graph Correlation ####
+
+Last week, we saw network data from the famous Bernard, Killworth, and Sailer (BKS) studies. These studies examined the issue of accuracy in self-reported network data. Each study involved a group of subjects, each of whom was asked to rank-order all other group members by frequency of interaction. The self-reported interaction frequency was referred to as the "cognitive" network by BKS (i.e. the network as understood by the subjects themeselves). During the study period, behavioral information on interaction within the same groups was also collected via trained observers. The network of observed pairwise interaction frequencies was referred to as the "behavioral" network. Accuracy was assessed by comparing the "cognitive" and "behavioral" networks. The BKS studies were controversial and launched a much larger literature on the accuracy of network measurement.
+
+##### (a) Comparing Networks #####
+
+For each of the data objects `bkfrat`, `bkham`, `bkoff` and `bktec` (each itself a list containing the cognitive and behavioral network from a BKS study) perform a QAP test of the correlation between the self-report and the observed structure. Show in each case the test results, including a plot of the QAP replicates. 
+
+```{r}
+
+# Calculating the correlation between the observed and reported network
+gcor(bkham$Behavioral,bkham$Cognitive) 
+# Performing the QAP test
+qth<-qaptest(bkham,gcor,g1=1,g2=2)
+# Summary of the QAP test
+summary(qth)             
+# Plotting the QAP test results
+plot(qth,xlim=c(-0.75,0.75))                     
+
+# Repeating the above steps for each of the network
+
+# Fraternity network
+gcor(bkfrat$Behavioral,bkfrat$Cognitive) 
+qtf<-qaptest(bkfrat,gcor,g1=1,g2=2)
+summary(qtf)                                       
+plot(qtf,xlim=c(-0.75,0.75))                     
+# Research group network
+gcor(bkoff$Behavioral,bkoff$Cognitive) 
+qto<-qaptest(bkoff,gcor,g1=1,g2=2)
+summary(qto)                                       
+plot(qto,xlim=c(-0.75,0.75))                     
+# Business network
+gcor(bktec$Behavioral,bktec$Cognitive) 
+qtt<-qaptest(bktec,gcor,g1=1,g2=2)
+summary(qtt)           
+plot(qtt,xlim=c(-0.75,0.75))                     
+
+
+```
+
+##### (b) Discussion #####
+Use the results from part (a) to provide your own assessment of the extent to which the data does or does not show general agreement between observation and informant report. 
+\
+* Answer: The individuals in the radio operator and fraternity network (i.e the informant network) have under estimated their network density when compared to observed data. The individuals in research group and business network (i.e the informant network) have over estimated their network density when compared to observed data. Considering the p values of the QAP test, we can observe that observed network is not similar to the informant network. Hence, they seem to come from different distributions.  This seems in conjuction with the Bernard, Killworth and Sailer studies which state that - 'On average, about half of what informants report is probably incorrect in some way.' The analysis of the QAP test shows that the data does not show general agreement between observation and informant report.
+
+##### (c) Observation and Networks #####
+
+What reliability or validity issues might arise in the BKS studies if the observed report data is taken to be the true "behavioral" network?
+\
+* Answer: Reliability is consistency of getting the same result for multiple measurements. For the observed data, it depends on the observer who is observing the network. This data may have error if the observer is effective and may vary with different observers. It is not guaranteed that different observers would result in the same observed network. Also an observer's perception may cause bias in the network. Also time and other external factors may cause error in the observer network. Hence, these systematic and idiosyncratic factors would influence the reliability of the observed data.
+\
+Validity is making sure our method measures what it is supposed to measure. For the observed data, if the observer and researcher are different and the observer's perspective of a tie is different than the researcher's concepts, then it would greatly affect the validity of the observed network. If there is not much clarity in the operationalization of the concepts, then this may introduce errors and affect the validity of the observed network.
+\
+The above stated issues of reliability and validity must be taken into consideration if the observed data is taken to be the true "behavioral" network.
+
+#### Multivariate Analysis of Network Sets ####
+
+For this problem we will use data on international trade, called `trade` in the data for this problem set. This data captures trade in various types of products/materials among countries. You will want to explore the data before answering these questions, to ensure you understand.
+
+##### (a) Clustering #####
+
+Show a hierarchical clustering of the trade networks, based on the Hamming distance. Compare this with a two-dimensional MDS solution on the same data.
+\
+* Answer: Looking at the cluster dendogram, it was clustered into 3 classes based on the Hamming distance. The MDS scale also shows approximately 3 classes as below -
+\
+Class 1 - Manufactured goods, Crude_Materials and Food
+\
+Class 2 - Domestic_exchange
+\
+Class 3 - Minerals
+\
+But the MDS scale is more helpful in visually showing the relative distance and positioning of the different categories, when compared to hierarchical clustering. But hierarchical clustering is better in representing the clusters as we can decide if two categories belong to the same class based on number of clusters or height.
+\
+
+```{r}
+# Creating data frame of the trade network
+trade_df<-data.frame(trade)
+# Calculating the hamming distance
+trade_hd<-hdist(trade)
+trade_hd
+# Clustering by Hamming distance
+hc<-hclust(as.dist(trade_hd))                      
+plot(hc,label=rownames(trade_df))
+# Creating 3 clusters 
+rect.hclust(hc,k=3)                                
+ct<-cutree(hc,k=3)
+# Plotting after clustering
+gplot(trade,vertex.col=ct,xlab="Plot of clustering based on Hamming distance")                            
+vals<-sort(unique(ct))   
+legend("topleft",fill=1:length(vals),legend=vals,bty="n")
+
+# MDS scaling
+trade_mds<-cmdscale(trade_hd)
+trade_mds
+
+plot(trade_mds,type="n")                                
+text(trade_mds,label=rownames(trade_df))
+
+```
+
+##### (b) PCA #####
+
+Conduct a PCA on the trade networks. How many dimensions are needed to account for the bulk of the variation in these networks? Try using a scree plot to help with this question. Plot the loadings on the first two components; what does this suggest about the undering relationships among the trade networks?
+\
+* Answer: Looking at the scree plot, it shows that we need 5 dimensions to account for the bulk of the variation in these networks. Out of the 5 dimensions, the first dimension explains the maximum of the variation among all the dimensions. When we load the first two components, we observe that all the categories fall on the negative side of the PC1 (first principal component). Considering PC2 (second principal component), we observe that Diplomatic_exchange and Minerals fall on the positive side whereas Manufactured goods, Crude_Materials and Food fall on the nagtive side. But looking at the angles of the loadings, we observe that there is angle between Diplomatic_exchange and Minerals is way higher than any of the 3 categories on the negative side. The angle between Manufactured goods, Crude_Materials and Food is less, suggesting that they would be part of the same class or cluster.
+\
+
+```{r}
+### Conducting PCA ###
+
+trade_cor<-gcor(trade)
+trade_cor
+
+# Computing Eigendecomposition 
+teig<-eigen(trade_cor)
+
+# Extracting Eigenvalues 
+evals<-teig$value                                      
+evals/sum(evals)                                          
+# Showing as a scree plot
+barplot(evals/sum(evals),names.arg=1:length(evals))
+
+# Loading Eigenvectors
+load<-teig$vector[,1:5]
+rownames(load)<-rownames(trade_df)
+load
+
+# Plotting the first two principal components 
+plot(load[,1:2],type="n",asp=1,xlab="PC 1",ylab="PC 2", main="Plotting principal components")
+abline(h=0,v=0,lty=3)
+arrows(0,0,load[,1],load[,2],col=2)          
+text(load[,1:2],label=rownames(trade_df))
+
+```
+
+##### (c) Discussion #####
+
+Compare your PCA results to those obtained using MDS. In what ways are they similar? Different?
+\
+* Answer: Considering PCA and MDS, we can conclude that the number of clusters observed is the same for both PCA as well as MDS scaling, namely -
+\
+Class 1 - Manufactured goods, Crude_Materials and Food
+\
+Class 2 - Domestic_exchange
+\
+Class 3 - Minerals
+\
+But looking at the PCA, there is a tendency to combine Domestic_exchange and Minerals into one cluster (as they are both on the positive side of PC2) but MDS scaling shows that they  are very dissimilar according to hamming distance. PCA helps in explaining maximum variance in the data. In the above example PCa is calculated based on Eigen values whereas MDS scaling is based on hamming distance.

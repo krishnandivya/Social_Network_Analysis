@@ -1,0 +1,478 @@
+---
+title: "Hypothesis Testing"
+author: "Divya Krishnan"
+date: "Wednesday, June 03, 2015"
+output: html_document
+---
+
+
+```{r, message=FALSE}
+# Loading necessary libraries
+library(statnet)
+library(sna)
+library(network)
+library(knitr)
+library(RColorBrewer) 
+library(intergraph) 
+library(GGally)
+
+# Loading relevant datasets 
+load("hypothesis_testing.Rdata")
+# Listing variables 
+ls()
+
+```
+
+#### Problem 1 ####
+In this problem you will use the now familiar Correlates of War dataset. Consider exploring the structure of this network by performing the following:
+
+a) Plot the distribution of component sizes of the militarized interstate disputes (mids 1993) network under each of the four definitions of connectivity. (Hint: consider using the component.dist function in R.) How does the component size distribution change across the four definitions?
+
+\
+* Answer: 
+
+The largest maximal set of mutually connected vertices, according to weak connectivity, is 47. We observe that there seems to be a cluster of countries which are engaged in disputes with other countries. According to unilateral connectivity, the largest component size is 6.According to recursive connectivity, the largest component size is 2. According to strong connectivity, the largest component size is 2, suggesting reciprocity or mutual dyads. We observe that the largest components in strong connectivity are the same in recursive connectivity as well. 
+\
+As we move from weak to strong connectivity, we observe that the deifnition of connectivity becomes more restrictive. The above patterns along with the plots of the component size distribution show that as the definition of connectivity becomes more and more restrictive, the component sizes reduce furthur and furthur, hence leading to more number of components. 
+\
+
+```{r}
+# Plotting the mids dataset  
+gplot(mids_1993,cex=0.25,label.pad = 0.10,label.border=0.5,label.cex=0.75,xlab="Mids network")
+
+# Weak connectivity
+res_weak<-component.dist(mids_1993,connected=c("weak"))
+res_weak$csize
+hist(res_weak$csize,main="Weak connectivity",xlab="Maximal set of mutually connected vertices")
+# Unilateral connectivity
+res_uni<-component.dist(mids_1993,connected=c("unilateral"))
+res_uni$csize
+hist(res_uni$csize,main="Unilateral connectivity",xlab="Maximal set of mutually connected vertices")
+# Recursive connectivity
+res_rec<-component.dist(mids_1993,connected=c("recursive"))
+res_rec$csize
+hist(res_rec$csize,main="Recursive connectivity",xlab="Maximal set of mutually connected vertices")
+# Strong connectivity
+res_strong<-component.dist(mids_1993,connected=c("strong"))
+res_strong$csize
+hist(res_strong$csize,main="Strong connectivity",xlab="Maximal set of mutually connected vertices")
+
+```
+
+b) Plot the MID network showing any bicomponents. (Hint: use the bicomponent.dist function
+with the "weak" symmetry setting.) Which nations are involved in the bicomponent? How
+might your interpretation of a bicomponent in this network differ from a bicomponent in say a network of aid giving?
+\
+* Answer: The nations involved in the bicomponent are - 
+"USA" "HAI" "UKG" "NTH" "FRN" "CRO" "YUG" "BOS" "RUS" "ARM" "AZE" "IRN" "TUR" "IRQ" "CHN" "PRK".
+\
+In this network the bicomponents gives a subset of countries which are involved in disputes with atleast 2 other countries in the subset. The countries in the bicomponent have enough military strength and engage in disputes with 2 other countries. These countries are either powerful countries like the USA or countries like Iran which have valuable resources such as Oil. These countries may have vested interests in having disputes with other countries. These reasons make the number of countries in the bicomponent restrictive. The bicomponenets in an aid-giving network will not have these restrictions and also it would be a positive remark if the country is able to give aids to two other countries and hence the country would seem to be promoting peace. In contrast, being in a bicomponent in the mids network gives a impression that the country is not promoting peace or is not peaceful as it is involved in multiple disputes.
+\
+
+```{r}
+# Finding bicomponents by weak symmetry setting 
+res<-bicomponent.dist(mids_1993,symmetrize="weak")
+res
+# Replacing missing values with 0 
+res$membership[is.na(res$membership)]<-0
+# Plotting mids dataset according to bicomponent membership
+ggnet(mids_1993,mode="fruchtermanreingold",alpha=.3,node.group=res$membership,label.nodes=TRUE)
+
+# Getting the names of the countries involved in the bicomponent
+names<-get.vertex.attribute(mids_1993,"vertex.names")
+countries<-matrix(names,nrow=1)
+countries[res$members$`1`]
+
+```
+
+c) Cutpoints are potentially critical positions in a social network, representing "choke points" in the flow of information, material, or influence. Using the cutpoints command, identify the countries which are cutpoints in the MIDs network (mids 1993) and the alliances network (alliances 1993). Interpret the potential implications of these respective positions (i.e. what practical implications would you expect for a country in the position of cutpoint?).
+\
+* Answer: 
+\
+Considering weak connectedness definition, the following are the cutpoints in -
+\
+1. Mids network - "HAI" "BEL" "ITA" "ALB" "YUG" "RUS" "NIR" "DRC" "IRN" "TUR" "IRQ" "EGY" "ISR" "AFG" "CHN" "PRK"
+\
+2. Alliances network - "USA" "FRN" "CRO" "MAA" "PRK" "ROK" "IND"
+\
+Considering strong connectedness definition, the following are the cutpoints in - 
+\
+1. Mids network - None
+\
+2. Alliances network - "USA" "FRN" "CRO" "MAA" "PRK" "ROK" "IND".
+\
+The countries which are cutpoints in the mids network suggest countries that are central according to vitality. The removal of these countries from the network would increase the number of components in the mids network. Hence, these countries should be convinced for peace if we have to decrease the number of disputes.
+\
+The countries which are cutpoints in the alliances network suggest countries that are central in forming alliances. Removing these countries would break alliances which may lead to more disputes.
+These countries help in forming a connected set of allies and are critical to maintain the allies.
+\
+
+```{r}
+
+# Weak connectedness
+
+# Finding cutpoints in mids dataset with weak connectedness 
+mids_cut<-cutpoints(mids_1993,mode="digraph",connected="weak")
+mids_cut
+
+# Finding cutpoints in alliances dataset with weak connectedness
+all_cut<-cutpoints(alliances_1993,mode="digraph",connected="weak")
+all_cut
+
+# Countries which are choke or cut points in the mids dataset
+names[mids_cut]
+# Countries which are choke or cut points in the alliances dataset
+names[all_cut]
+
+# Strong connectedness
+
+# Finding cutpoints in mids dataset with strong connectedness 
+mids_cut<-cutpoints(mids_1993,mode="digraph",connected="strong")
+mids_cut
+
+# Finding cutpoints in alliances dataset with strong connectedness
+all_cut<-cutpoints(alliances_1993,mode="digraph",connected="strong")
+all_cut
+
+# Countries which are choke or cut points in the mids dataset
+names[mids_cut]
+# Countries which are choke or cut points in the alliances dataset
+names[all_cut]
+
+```
+
+d) Use cor.test to perform a simple test of the hypothesis that cutpoint status in the alliance network is positively related to total degree in the network of militarized interstate disputes. Is the hypothesis supported? Why might you have expected to obtain this result? Why might you have expected to obtain the opposite result?
+\
+* Answer: The correlation test between the cutpoints of alliances network and the total degree of mids network show that there is a positive correlation of 0.2, which is statistically significant as the p-value is 0.03. Hence the hypothesis is supported. We may have expected to see this result as the countries forming cutpoints in the alliances network might have lot of resources and money. This could also be the reason that those countries have enough military strength and vested interests  in having dispute with other countries. We may have expected to see the opposite result as some countries which are having disputes with other countries would be spending more money in arms and ammunition and might not have enough resources and money left to be of critical position in the alliances network.
+\
+
+```{r}
+# Cutpoints in alliances network
+all_cut<-cutpoints(alliances_1993,mode="digraph",connected="weak",return.indicator=TRUE)
+all_cut
+# Total degree of mids network
+mids_deg<-degree(mids_1993, cmode="freeman")
+mids_deg
+
+# Converting cutpoint vector to a numeric vector
+for(i in 1:length(all_cut))
+  {
+      if(all_cut[[i]]==TRUE)
+        all_cut[[i]]<-1
+      else
+        all_cut[[i]]<-0
+  }
+all_cut
+# Correlation test
+cor.test(all_cut,mids_deg)
+
+```
+
+#### Problem 2 ####
+
+The object predom contains data on dominance acts among 19 preschool children (from Strayer, Strayer, and Chapeskie, 1980), with a tie from i to j if child i was observed to force child j to submit at some point during the observation period. Using this data, perform the following:
+
+(a) Calculate the dyad and triad census for this network. Interpret the results in substantive terms.
+
+\
+* Answer: The predom network a tie is formed between i to j, if i dominates j. In reality, if a child i dominates child j, it means that child i has a dominating nature and j has a submissive nature. Due to the submissive nature of j, it is highly unlikely that j would dominate i. Hence there are less chances of i and j having a mutual tie. The same is observed in dyad census. There are only 12 mutual ties wheras there are 49 assymetric ties.
+\
+The largest number of triads is in the 012 and 003 category. The 012 category suggests that there is only one tie from a dominating child to a submissive child. The 003 category suggests that there is no tie among any of the 3 children in the triad, which means no one is trying to dominate. the least number of triads is in the 030C category, which suggest that child a dominates child b, child b dominates child c and child c dominates child a. The triad census shows that there are lot of children who do not dominate others. 
+\
+
+```{r}
+# Calculating dyad census
+dyad.census(predom)
+# Calculating triad census
+triad.census(predom)
+
+```
+
+(b) Test the density of this network against a size conditioned baseline model. Discuss the results.
+\
+*Answer: The cug test shows that the density of the network is far lower than the baseline distribution. This result is significant at the apha value of 0.05. This means that the density in the predom network is far less than a random network of similar size. This is in alignment with the expectation of the predom data, since we do not expect to have a lot of children having a dominating relationship with others. Not every child would be dominating and also among the children having ties, the number of mutual relationships are very less. All this would result in a lower density level as is shown in the cug test.
+
+\
+```{r}
+# cug test for density conditioned on size
+cug<-cug.test(predom,gden,mode="digraph",cmode="size") 
+cug
+plot(cug)
+
+```
+
+(c) Test the edgewise reciprocity of this network against a size and density conditioned baseline model. Discuss the results.
+\
+* Answer:  The cug test for reciprocity conditioned on size shows that Pr(x<=Obs) is less than 0.05 and hence the observed reciprocity is lower than the baseline distribution. But the cug test for reciprocity conditioned on density shows that Pr(X>=Obs) is less than 0.05 and hence the observed reciprocity is higher than the baseline distribution. This shows that if we condition the baseline better, the observed reciprocity seems higher than the baseline. Hence if we can fix the baseline model for predom network, we can say that the reciprocity is lower or higher than baseline. 
+\
+
+```{r}
+# cug test for reciprocity conditioned on size 
+cug<-cug.test(predom,grecip,cmode="size",FUN.arg=list(measure="edgewise"))
+cug
+plot(cug)
+
+# cug test for reciprocity conditioned on density 
+cug<-cug.test(predom,grecip,cmode="edges",FUN.arg=list(measure="edgewise"))
+cug
+plot(cug)
+
+```
+
+(d) Test the transitivity of this network against a dyad census conditioned baseline model. Discuss the results.
+\
+The transitivity in the network is way higher than the baseline model. 
+* Answer: The cug test shows that the Pr(x>=Obs) is less than 0.05 and hence the observed transitivity deviates from the baseline distribution. The transitivity of predom network is  higher than what is observed in random graphs with similar dyad census. This means that if a dominates b, and b dominates c, then there is a high chance that c dominates a.
+
+
+```{r}
+# cug test for transitivity conditioned on dyad census
+cug<-cug.test(predom,gtrans,cmode="dyad.census")
+cug
+plot(cug)
+
+```
+
+(e) Test the cyclicity of this network (i.e., the number of directed 3-cycles) against a dyad census conditioned baseline model. Discuss the results.
+
+\
+* Answer: The cyclicity is defined as a->b, b->c and c->a, where a,b,c are nodes. According to this definition, a new function is created which only returns triads of 030C model. The cug test shows that the Pr(x<=Obs) is less than 0.05 and hence the observed cyclicity deviates from the baseline distribution. The cyclicity of predom network is far less than what is observed in random graphs with similar dyad census. We may like to consider investigating on the factors that could have led to this very low observed cyclicity in this network. 
+
+```{r}
+# Function for computing cylcicity using triad.census
+cyclicity<-function(predom)
+{
+  x<-triad.census(predom)
+  return(x[1,10])  
+}
+# cug test for cyclicity conditioned on dyad census
+cug<-cug.test(predom,cyclicity,cmode="dyad.census")
+cug
+plot(cug)
+
+```
+
+#### Problem 3 ####
+
+The object SanJuanSurVisiting contains data on visiting relations among households in San
+Juan Sur, Costa Rica, in 1948. The network object contains several vertex attributes, including a measure of status (status, from 1 (lowest) to 14 (highest)), an identification of families containing "prestige leaders" (leaders, 1 if present, otherwise 0), and an ethnographic classification of family groups (grouping, categorical). Using appropriate vector and/or matrix permutation tests, evaluate the following hypotheses:
+
+(a) Households with opinion leaders are less likely to be peripheral than households without opinion leaders.
+\
+* Answer: Coreness can be calculated from Eigen vector centrality. The permutation test between leadership and coreness shows that the correlation is not statistically significant at the alpha value of 0.05. Hence the above hypothesis is false.
+\
+
+```{r}
+# Permutation test
+perm.cor.test<-function(x,y,niter=5000)
+{  
+  c.obs <- cor(x,y,use="complete.obs")
+  c.rep <- vector()
+  for(i in 1:niter)
+  {
+    c.rep[i] <- cor(x,sample(y),use="complete.obs")
+    cat("Vector Permutation Test:\n\tObserved correlation: ",c.obs,"\tReplicate quantiles (niter=",niter,")\n",sep="")
+    cat("\t\tPr(rho>=obs):",mean(c.rep>=c.obs),"\n")
+    cat("\t\tPr(rho<=obs):",mean(c.rep<=c.obs),"\n")
+    cat("\t\tPr(|rho|>=|obs|):",mean(abs(c.rep)>=abs(c.obs)),"\n")
+    invisible(list(obs=c.obs,rep=c.rep))
+  return(mean(abs(c.rep)>=abs(c.obs)))
+  }
+}
+
+# Getting the leadership attribute of each node
+leader<-SanJuanSurVisiting%v%"leaders"
+leader
+# Calculating the eigen vector(coreness) of each node
+core<-evcent(SanJuanSurVisiting, gmode="digraph")
+# Permutation test between leadership and coreness
+perm.cor.test(leader,core)
+
+```
+
+\
+(b) High-status households tend to receive more visitors than they send.
+\
+* Answer: Status was considered at the ordinal value of 1 to 14 based on the node level attribute. The node level attribute was also used to define a binary value of status at the threshold of level 10, where a node with status level less than 10 was considere low status and a node with status level equal or greater than 10 was considered high status. 
+\
+The permutation test for both the ordinal value of status (1 to 14) and the binary value of status (0-low status and 1 - high status) with the difference in indegree and outdegree shows that the result is not statistically significant. This shows that high-status households do not necessarily receive more visitors than they send. Hence the above hypothesis is false. 
+\
+
+```{r}
+
+# Defining the threshold
+threshold<-10
+# Getting the status of each node
+status<-SanJuanSurVisiting%v%"status"
+# Creating a binary vector of high or low status based on threshold
+bin_status<-status>=threshold
+
+# Caluclating indegree and outdegree of each node
+indegree<-degree(SanJuanSurVisiting, cmode="indegree") 
+outdegree<-degree(SanJuanSurVisiting, cmode="outdegree")
+# Creating a new measure of the difference of indegree and outdegree
+diff<-indegree-outdegree
+
+# Plotting status and difference of indegree and outdegree  
+plot(status,diff,ylab="Indegree-Outdegree",main="Status vs Difference in degrees")
+plot(bin_status,diff,ylab="Indegree-Outdegree",main="Status(in binary form) vs Difference in degrees",xlab="status")
+
+# Permutation test between status and difference of indegree and outdegree
+perm.cor.test(status,diff)
+# Permutation test between binary value of status and difference of indegree and outdegree
+perm.cor.test(bin_status,diff)
+
+```
+
+\
+(c) Families in the same group tend to visit one another more frequently than those in different groups.
+\
+* Answer: The QAP test shows that there is a statistically significant correlation between grouping and visiting, which is much higher than the baseline. There is a positive correlation of 0.38, which shows that families in the same group tend to visit one another more frequently than those in different groups. Hence, the above stated  hypothesis is true.
+\
+
+```{r}
+
+# Getting the number of nodes
+size<-network.size(SanJuanSurVisiting)
+# Getting the grouping of each node
+grouping<-SanJuanSurVisiting%v%"grouping"
+# Matrix to capture if the nodes are in the same group or not
+groupmat<-matrix(0,nrow=size,ncol=size)
+# Loop to generating the matrix
+for(i in 1:size)
+  {
+    for(j in 1:size)
+      {
+          # Checking if i and j belong to the same group
+          if(grouping[i]==grouping[j])
+            {
+                groupmat[i,j]<-1
+            }
+            else
+            {
+                groupmat[i,j]<-0
+            }            
+      }
+  }
+# QAP test
+qt<-qaptest(list(SanJuanSurVisiting,groupmat),gcor,g1=1,g2=2)
+# Results of QAP test
+summary(qt) 
+# Plotting the results of QAP test
+plot(qt,xlim=c(-0.5,0.5))   
+
+```
+\
+
+(d) Marginally, families tend to send visitors to households with higher status than their own.
+\
+* Answer: The QAP test shows that there is positive correlation of 0.02, between sending visitors and whether the receiver node's status is higher than the senders. This result is statistically significant given the alpha value of 0.05. This means that families tend to send visitors to households with higher status than their own. Hence, the above stated  hypothesis is true.
+\
+
+```{r}
+
+# Getting the number of nodes
+size<-network.size(SanJuanSurVisiting)
+# Getting the status of each node
+status<-SanJuanSurVisiting%v%"status"
+# Matrix to capture if node j's status is higher than status of node i
+statusmat<-matrix(0,nrow=size,ncol=size)
+# Loop for generating the matrix
+for(i in 1:size)
+  {
+    for(j in 1:size)
+      {
+          # Checking if the status of the node j's status is greater than node i
+          if(status[j]>status[i])
+            {
+                statusmat[i,j]<-1
+            }
+            else
+            {
+                statusmat[i,j]<-0
+            }            
+      }
+  }
+# QAP test
+qt<-qaptest(list(SanJuanSurVisiting,statusmat),gcor,g1=1,g2=2)
+# Results of QAP test
+summary(qt)  
+# Plotting the results of QAP test
+plot(qt)   
+
+```
+\
+
+(e) Relationships among high-status households are more likely to be mutual than relationships among lower-status households.
+\
+
+* Answer: The QAP test shows that there is a statistically significant correlation between high-status households and mutual relationships, which is much higher than the baseline. There is a positive correlation of 0.5 between high-status households and mutual realtionships. Hence, the above stated  hypothesis is true.
+
+```{r}
+# Threshold value of status, defined as 10
+threshold<-10
+# Getting the number of nodes
+size<-network.size(SanJuanSurVisiting)
+# Adjacency matrix for SanJuanSurVisiting
+san<-as.matrix(SanJuanSurVisiting)
+# Getting the status of each node
+status<-SanJuanSurVisiting%v%"status"
+# Matrix to capture status and mutual relationships 
+statusmat<-matrix(0,nrow=size,ncol=size)
+# Loop for generating the matrix
+for(i in 1:size)
+  {
+    for(j in 1:size)
+      {
+          # Checking if the nodes belong to the high status and have mutual relationships 
+          if(status[i]>=threshold & status[j]>=threshold & san[i,j]==1 & san[j,i]==1)
+            {
+                statusmat[i,j]<-1
+            }
+          else
+            {
+              statusmat[i,j]<-0
+            }
+      }
+  }
+# Correlation between high status households and mutual relationships 
+gcor(SanJuanSurVisiting,statusmat)
+# QAP test
+qt<-qaptest(list(SanJuanSurVisiting,statusmat),gcor,g1=1,g2=2)
+# Results of QAP test
+summary(qt) 
+# Plotting the results of QAP test
+plot(qt,xlim=c(-0.5,0.5))
+
+```
+
+#### Problem 4 ####
+
+Consider the set of simple graphs (undirected graphs with no loops) of order (i.e. size) 7. For each possible density level, how many such graphs exist? (Hint: think in terms of the number of edges.) Plot your results. What does this suggest about the relationship between density and structural diversity?
+\
+* Answer: Plotting the density against the number of possible graphs for that density level, provides a bell curve. We observe that initially as density increases, the number of possible graphs increases. Half-way through the density level, the number of possible graphs starts decreasing, making it resemble a normal distribution. The structural diversity is the highest near the density level of 0.5. As density increases or decreases from that level, the structural diversity also decreases. At very low and high levels of density, the number of possibilities is restricted and hence the number of graphs are also limited. As we move towards the 0.5 level of density, the number of possibilities increases, and hence increasing the number of possible graphs. 
+
+
+```{r}
+
+# Size of the graph
+v<-7
+# Calculating the maximum possible edges for a undirected graph
+n<-(v*(v-1))/2 
+
+density<-vector()
+num_graphs<-vector()
+
+# Loop for calculating the graphs for each density level
+for(i in 0:n)
+{
+  # Density level
+  den<-i/n
+  density[i+1]<-den
+  # Number of graphs for each level of density
+  num_graphs[i+1]<-choose(n,i) 
+}
+# Plot of density against structural diversity
+plot(density,num_graphs,main="Density vs Structural diversity",xlab="Density",ylab="Number of possible graphs")
+
+```
